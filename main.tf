@@ -5,7 +5,7 @@ provider "aws" {
 }
 
 # Create VPC
-resource "aws_vpc" "app_vpc" {
+resource "aws_vpc" "python_app_vpc" {
   cidr_block = "10.0.0.0/16"
   tags = {
     Name = "${var.name} - VPC"
@@ -13,16 +13,16 @@ resource "aws_vpc" "app_vpc" {
 }
 
 # Create internet gateway
-resource "aws_internet_gateway" "app_gw" {
-  vpc_id = aws_vpc.app_vpc.id
+resource "aws_internet_gateway" "python_app_gw" {
+  vpc_id = aws_vpc.python_app_vpc.id
   tags = {
     Name = "${var.name} - igw"
   }
 }
 
 # Create subnet
-resource "aws_subnet" "app_subnet" {
-  vpc_id = aws_vpc.app_vpc.id
+resource "aws_subnet" "python_app_subnet" {
+  vpc_id = aws_vpc.python_app_vpc.id
   cidr_block = "10.0.0.0/24"
   availability_zone = "eu-west-1a"
   tags = {
@@ -31,11 +31,11 @@ resource "aws_subnet" "app_subnet" {
 }
 
 # Create route table
-resource "aws_route_table" "app_route_table" {
-  vpc_id = aws_vpc.app_vpc.id
+resource "aws_route_table" "python_app_rt" {
+  vpc_id = aws_vpc.python_app_vpc.id
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.app_gw.id
+    gateway_id = aws_internet_gateway.python_app_gw.id
   }
   tags = {
     Name = "${var.name} - route"
@@ -43,21 +43,21 @@ resource "aws_route_table" "app_route_table" {
 }
 
 # Route table associations
-resource "aws_route_table_association" "app_assoc" {
-  subnet_id = aws_subnet.app_subnet.id
-  route_table_id = aws_route_table.app_route_table.id
+resource "aws_route_table_association" "python_app_assoc" {
+  subnet_id = aws_subnet.python_app_subnet.id
+  route_table_id = aws_route_table.python_app_rt.id
 }
 
 # Create security groups
-resource "aws_security_group" "app_security_group" {
+resource "aws_security_group" "python_app_sg" {
   name = var.name
-  description = "Allow inbound traffic on port 80"
-  vpc_id = aws_vpc.app_vpc.id
+  description = "Allow inbound traffic on port 22 on Sparta IP and home IP"
+  vpc_id = aws_vpc.python_app_vpc.id
   ingress {
-    from_port = 80
-    to_port = 80
+    from_port = 22
+    to_port = 22
     protocol = "TCP"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["212.161.55.68/32", "95.147.223.154/32"]
   }
   tags = {
     Name = "${var.name} - sg"
@@ -65,18 +65,19 @@ resource "aws_security_group" "app_security_group" {
 }
 
 # Send template to sh file
-data "template_file" "app_init" {
+data "template_file" "python_app_init" {
   template = "${file("./scripts/init_script.sh.tpl")}"
 }
 
 # Launch an instance
-resource "aws_instance" "app_instance" {
+resource "aws_instance" "python_app_instance" {
   ami           = var.ami_id
-  subnet_id = aws_subnet.app_subnet.id
-  vpc_security_group_ids = [aws_security_group.app_security_group.id]
+  subnet_id = aws_subnet.python_app_subnet.id
+  vpc_security_group_ids = [aws_security_group.python_app_sg.id]
   instance_type = "t2.micro"
   associate_public_ip_address = true
-  user_data = data.template_file.app_init.rendered
+  key_name = "shireen-eng-48-first-key"
+  user_data = data.template_file.python_app_init.rendered
   tags = {
     Name = "${var.name} - instance"
   }
